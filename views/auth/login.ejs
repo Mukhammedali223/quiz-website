@@ -1,0 +1,98 @@
+<div class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Welcome Back</h1>
+                <p>Login to your Quiz Website account</p>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    <span class="error-text" id="emailError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="password-input">
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                        <button type="button" class="toggle-password" tabindex="-1">👁️</button>
+                    </div>
+                    <span class="error-text" id="passwordError"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
+                    <span class="btn-text">Login</span>
+                    <span class="btn-loader" style="display: none;">⏳</span>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Don't have an account? <a href="/auth/register">Register here</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('loginForm');
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Clear previous errors
+            clearErrors();
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            // Client-side validation
+            let hasErrors = false;
+
+            if (!isValidEmail(email)) {
+                showFieldError('email', 'Please enter a valid email address');
+                hasErrors = true;
+            }
+
+            if (!password) {
+                showFieldError('password', 'Password is required');
+                hasErrors = true;
+            }
+
+            if (hasErrors) return;
+
+            // Submit form
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.querySelector('.btn-text').style.display = 'none';
+            submitBtn.querySelector('.btn-loader').style.display = 'inline';
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    showToast('Login successful!', 'success');
+                    setTimeout(() => window.location.href = '/quizzes', 1000);
+                } else {
+                    showToast(data.error || 'Invalid email or password', 'error');
+                }
+            } catch (error) {
+                showToast('Network error. Please try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.querySelector('.btn-text').style.display = 'inline';
+                submitBtn.querySelector('.btn-loader').style.display = 'none';
+            }
+        });
+    });
+</script>

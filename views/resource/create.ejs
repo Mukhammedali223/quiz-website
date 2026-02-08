@@ -1,0 +1,273 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1>Create New Quiz</h1>
+        <p>Build an engaging quiz with multiple questions</p>
+    </div>
+
+    <form id="createQuizForm" class="quiz-form">
+        <div class="form-section">
+            <h3>Quiz Details</h3>
+
+            <div class="form-group">
+                <label for="title">Quiz Title *</label>
+                <input type="text" id="title" name="title" placeholder="Enter quiz title" minlength="3" maxlength="100"
+                    required>
+                <span class="error-text" id="titleError"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" placeholder="Describe your quiz (optional)"
+                    maxlength="500" rows="3"></textarea>
+                <span class="char-count"><span id="descCount">0</span>/500</span>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="isPublic" name="isPublic">
+                    <span class="checkmark"></span>
+                    Make quiz public (anyone can play)
+                </label>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header">
+                <h3>Questions</h3>
+                <button type="button" id="addQuestionBtn" class="btn btn-secondary btn-sm">
+                    ➕ Add Question
+                </button>
+            </div>
+
+            <div id="questionsContainer">
+                <!-- Questions will be added here dynamically -->
+            </div>
+
+            <span class="error-text" id="questionsError"></span>
+        </div>
+
+        <div class="form-actions">
+            <a href="/quizzes" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                <span class="btn-text">Create Quiz</span>
+                <span class="btn-loader" style="display: none;">⏳</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    let questionCount = 0;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!isLoggedIn()) {
+            window.location.href = '/auth/login';
+            return;
+        }
+
+        // Add first question
+        addQuestion();
+
+        // Add question button
+        document.getElementById('addQuestionBtn').addEventListener('click', addQuestion);
+
+        // Character counter
+        document.getElementById('description').addEventListener('input', function () {
+            document.getElementById('descCount').textContent = this.value.length;
+        });
+
+        // Form submission
+        document.getElementById('createQuizForm').addEventListener('submit', handleSubmit);
+    });
+
+    function addQuestion() {
+        questionCount++;
+        const container = document.getElementById('questionsContainer');
+
+        const questionHtml = `
+    <div class="question-card" id="question-${questionCount}" data-index="${questionCount}">
+      <div class="question-header">
+        <h4>Question ${questionCount}</h4>
+        <button type="button" class="btn-icon btn-danger" onclick="removeQuestion(${questionCount})" title="Remove question">
+          ✕
+        </button>
+      </div>
+      
+      <div class="form-group">
+        <label>Question Text *</label>
+        <input 
+          type="text" 
+          name="question-${questionCount}-text" 
+          placeholder="Enter your question"
+          class="question-text"
+          required
+        >
+      </div>
+      
+      <div class="options-container" id="options-${questionCount}">
+        <label>Answer Options *</label>
+        <div class="option-row">
+          <input type="radio" name="correct-${questionCount}" value="0" checked>
+          <input type="text" name="option-${questionCount}-0" placeholder="Option A" class="option-input" required>
+          <button type="button" class="btn-icon" onclick="removeOption(${questionCount}, this)" title="Remove option">✕</button>
+        </div>
+        <div class="option-row">
+          <input type="radio" name="correct-${questionCount}" value="1">
+          <input type="text" name="option-${questionCount}-1" placeholder="Option B" class="option-input" required>
+          <button type="button" class="btn-icon" onclick="removeOption(${questionCount}, this)" title="Remove option">✕</button>
+        </div>
+      </div>
+      
+      <button type="button" class="btn btn-sm btn-outline add-option-btn" onclick="addOption(${questionCount})">
+        ➕ Add Option
+      </button>
+      
+      <small class="help-text">Select the radio button next to the correct answer</small>
+    </div>
+  `;
+
+        container.insertAdjacentHTML('beforeend', questionHtml);
+        updateQuestionNumbers();
+    }
+
+    function removeQuestion(index) {
+        const questions = document.querySelectorAll('.question-card');
+        if (questions.length <= 1) {
+            showToast('Quiz must have at least one question', 'error');
+            return;
+        }
+
+        document.getElementById(`question-${index}`).remove();
+        updateQuestionNumbers();
+    }
+
+    function updateQuestionNumbers() {
+        const questions = document.querySelectorAll('.question-card');
+        questions.forEach((card, idx) => {
+            card.querySelector('h4').textContent = `Question ${idx + 1}`;
+        });
+    }
+
+    function addOption(questionIndex) {
+        const container = document.getElementById(`options-${questionIndex}`);
+        const optionRows = container.querySelectorAll('.option-row');
+
+        if (optionRows.length >= 6) {
+            showToast('Maximum 6 options allowed', 'error');
+            return;
+        }
+
+        const optionIndex = optionRows.length;
+        const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+        const optionHtml = `
+    <div class="option-row">
+      <input type="radio" name="correct-${questionIndex}" value="${optionIndex}">
+      <input type="text" name="option-${questionIndex}-${optionIndex}" placeholder="Option ${letters[optionIndex]}" class="option-input" required>
+      <button type="button" class="btn-icon" onclick="removeOption(${questionIndex}, this)" title="Remove option">✕</button>
+    </div>
+  `;
+
+        container.insertAdjacentHTML('beforeend', optionHtml);
+    }
+
+    function removeOption(questionIndex, btn) {
+        const container = document.getElementById(`options-${questionIndex}`);
+        const optionRows = container.querySelectorAll('.option-row');
+
+        if (optionRows.length <= 2) {
+            showToast('Minimum 2 options required', 'error');
+            return;
+        }
+
+        btn.closest('.option-row').remove();
+
+        // Reindex radio values
+        container.querySelectorAll('.option-row').forEach((row, idx) => {
+            row.querySelector('input[type="radio"]').value = idx;
+        });
+    }
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+        clearErrors();
+
+        const title = document.getElementById('title').value.trim();
+        const description = document.getElementById('description').value.trim();
+        const isPublic = document.getElementById('isPublic').checked;
+
+        // Validate title
+        if (title.length < 3) {
+            showFieldError('title', 'Title must be at least 3 characters');
+            return;
+        }
+
+        // Build questions array
+        const questionCards = document.querySelectorAll('.question-card');
+        const questions = [];
+
+        for (const card of questionCards) {
+            const idx = card.dataset.index;
+            const text = card.querySelector('.question-text').value.trim();
+            const optionInputs = card.querySelectorAll('.option-input');
+            const correctRadio = card.querySelector(`input[name="correct-${idx}"]:checked`);
+
+            if (!text) {
+                showToast('All questions must have text', 'error');
+                return;
+            }
+
+            const options = [];
+            for (const opt of optionInputs) {
+                if (!opt.value.trim()) {
+                    showToast('All options must have text', 'error');
+                    return;
+                }
+                options.push(opt.value.trim());
+            }
+
+            questions.push({
+                text,
+                options,
+                correctIndex: parseInt(correctRadio.value)
+            });
+        }
+
+        if (questions.length === 0) {
+            showFieldError('questions', 'Add at least one question');
+            return;
+        }
+
+        // Submit
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.btn-text').style.display = 'none';
+        submitBtn.querySelector('.btn-loader').style.display = 'inline';
+
+        try {
+            const response = await fetchWithAuth('/resource', {
+                method: 'POST',
+                body: JSON.stringify({ title, description, isPublic, questions })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('Quiz created successfully!', 'success');
+                setTimeout(() => window.location.href = '/quizzes', 1000);
+            } else {
+                if (data.details) {
+                    data.details.forEach(d => showToast(d.message, 'error'));
+                } else {
+                    showToast(data.error || 'Failed to create quiz', 'error');
+                }
+            }
+        } catch (error) {
+            showToast('Network error. Please try again.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.querySelector('.btn-text').style.display = 'inline';
+            submitBtn.querySelector('.btn-loader').style.display = 'none';
+        }
+    }
+</script>

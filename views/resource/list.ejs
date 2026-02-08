@@ -1,0 +1,152 @@
+<div class="page-container">
+    <div class="page-header">
+        <div class="header-left">
+            <h1>My Quizzes</h1>
+            <p>Manage your quiz collection</p>
+        </div>
+        <div class="header-right">
+            <a href="/quizzes/create" class="btn btn-primary">
+                <span>➕</span> Create Quiz
+            </a>
+        </div>
+    </div>
+
+    <div class="quiz-list-container">
+        <div class="quiz-filters">
+            <div class="filter-group">
+                <input type="text" id="searchInput" placeholder="Search quizzes..." class="search-input">
+            </div>
+            <div class="filter-group">
+                <select id="filterVisibility" class="filter-select">
+                    <option value="">All Visibility</option>
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="quizList" class="quiz-grid">
+            <div class="loading-state">
+                <span class="loader">⏳</span>
+                <p>Loading quizzes...</p>
+            </div>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-icon">📝</div>
+            <h3>No Quizzes Yet</h3>
+            <p>Create your first quiz to get started!</p>
+            <a href="/quizzes/create" class="btn btn-primary">Create Quiz</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allQuizzes = [];
+
+    document.addEventListener('DOMContentLoaded', async function () {
+        if (!isLoggedIn()) {
+            window.location.href = '/auth/login';
+            return;
+        }
+
+        await loadQuizzes();
+
+        // Search filter
+        document.getElementById('searchInput').addEventListener('input', filterQuizzes);
+        document.getElementById('filterVisibility').addEventListener('change', filterQuizzes);
+    });
+
+    async function loadQuizzes() {
+        try {
+            const response = await fetchWithAuth('/resource');
+            const data = await response.json();
+
+            if (data.success) {
+                allQuizzes = data.data.resources;
+                renderQuizzes(allQuizzes);
+            }
+        } catch (error) {
+            showToast('Failed to load quizzes', 'error');
+        }
+    }
+
+    function filterQuizzes() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const visibility = document.getElementById('filterVisibility').value;
+
+        let filtered = allQuizzes.filter(quiz => {
+            const matchesSearch = quiz.title.toLowerCase().includes(search) ||
+                (quiz.description && quiz.description.toLowerCase().includes(search));
+            const matchesVisibility = !visibility ||
+                (visibility === 'public' && quiz.isPublic) ||
+                (visibility === 'private' && !quiz.isPublic);
+            return matchesSearch && matchesVisibility;
+        });
+
+        renderQuizzes(filtered);
+    }
+
+    function renderQuizzes(quizzes) {
+        const container = document.getElementById('quizList');
+        const emptyState = document.getElementById('emptyState');
+
+        if (quizzes.length === 0) {
+            container.innerHTML = '';
+            emptyState.style.display = 'flex';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+
+        container.innerHTML = quizzes.map(quiz => `
+    <div class="quiz-card" data-id="${quiz._id}">
+      <div class="quiz-card-header">
+        <span class="quiz-visibility ${quiz.isPublic ? 'public' : 'private'}">
+          ${quiz.isPublic ? '🌐 Public' : '🔒 Private'}
+        </span>
+        <span class="quiz-questions">${quiz.questions.length} Q</span>
+      </div>
+      <h3 class="quiz-title">${escapeHtml(quiz.title)}</h3>
+      <p class="quiz-description">${escapeHtml(quiz.description || 'No description')}</p>
+      <div class="quiz-meta">
+        <span>Created: ${new Date(quiz.createdAt).toLocaleDateString()}</span>
+      </div>
+      <div class="quiz-actions">
+        <a href="/play/${quiz._id}" class="btn btn-sm btn-secondary">▶ Play</a>
+        <a href="/quizzes/view/${quiz._id}" class="btn btn-sm btn-outline">👁 View</a>
+        <a href="/quizzes/edit/${quiz._id}" class="btn btn-sm btn-outline">✏️ Edit</a>
+        <button onclick="deleteQuiz('${quiz._id}')" class="btn btn-sm btn-danger">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+    }
+
+    async function deleteQuiz(id) {
+        if (!confirm('Are you sure you want to delete this quiz?')) return;
+
+        try {
+            const response = await fetchWithAuth(`/resource/${id}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('Quiz deleted successfully', 'success');
+                allQuizzes = allQuizzes.filter(q => q._id !== id);
+                renderQuizzes(allQuizzes);
+            } else {
+                showToast(data.error || 'Failed to delete quiz', 'error');
+            }
+        } catch (error) {
+            showToast('Network error', 'error');
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>

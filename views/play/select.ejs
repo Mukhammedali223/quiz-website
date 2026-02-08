@@ -1,0 +1,128 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1>Play Quiz</h1>
+        <p>Choose a quiz to play</p>
+    </div>
+
+    <div class="quiz-select-container">
+        <div class="tabs">
+            <button class="tab active" data-tab="public">Public Quizzes</button>
+            <button class="tab" data-tab="my">My Quizzes</button>
+        </div>
+
+        <div class="tab-content active" id="public-tab">
+            <div id="publicQuizList" class="quiz-grid">
+                <div class="loading-state">
+                    <span class="loader">⏳</span>
+                    <p>Loading quizzes...</p>
+                </div>
+            </div>
+            <div id="publicEmptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">🎮</div>
+                <h3>No Public Quizzes</h3>
+                <p>There are no public quizzes available yet.</p>
+            </div>
+        </div>
+
+        <div class="tab-content" id="my-tab" style="display: none;">
+            <div id="myQuizList" class="quiz-grid">
+                <div class="loading-state">
+                    <span class="loader">⏳</span>
+                    <p>Loading quizzes...</p>
+                </div>
+            </div>
+            <div id="myEmptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">📝</div>
+                <h3>No Quizzes Yet</h3>
+                <p>Create your first quiz to play!</p>
+                <a href="/quizzes/create" class="btn btn-primary">Create Quiz</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async function () {
+        await loadPublicQuizzes();
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', async function () {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+
+                this.classList.add('active');
+                const tabId = this.dataset.tab + '-tab';
+                document.getElementById(tabId).style.display = 'block';
+
+                if (this.dataset.tab === 'my' && isLoggedIn()) {
+                    await loadMyQuizzes();
+                }
+            });
+        });
+    });
+
+    async function loadPublicQuizzes() {
+        try {
+            const response = await fetch('/resource/public');
+            const data = await response.json();
+
+            if (data.success) {
+                renderQuizList(data.data.resources, 'publicQuizList', 'publicEmptyState');
+            }
+        } catch (error) {
+            showToast('Failed to load public quizzes', 'error');
+        }
+    }
+
+    async function loadMyQuizzes() {
+        if (!isLoggedIn()) {
+            document.getElementById('myQuizList').innerHTML = '<p>Please login to see your quizzes</p>';
+            return;
+        }
+
+        try {
+            const response = await fetchWithAuth('/resource');
+            const data = await response.json();
+
+            if (data.success) {
+                renderQuizList(data.data.resources, 'myQuizList', 'myEmptyState');
+            }
+        } catch (error) {
+            showToast('Failed to load quizzes', 'error');
+        }
+    }
+
+    function renderQuizList(quizzes, containerId, emptyStateId) {
+        const container = document.getElementById(containerId);
+        const emptyState = document.getElementById(emptyStateId);
+
+        if (quizzes.length === 0) {
+            container.innerHTML = '';
+            emptyState.style.display = 'flex';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+
+        container.innerHTML = quizzes.map(quiz => `
+    <div class="quiz-play-card">
+      <div class="quiz-card-header">
+        <span class="quiz-questions">${quiz.questions?.length || quiz.questionCount || 0} Questions</span>
+      </div>
+      <h3 class="quiz-title">${escapeHtml(quiz.title)}</h3>
+      <p class="quiz-description">${escapeHtml(quiz.description || 'No description')}</p>
+      <div class="quiz-meta">
+        <span>By: ${quiz.owner?.username || 'Unknown'}</span>
+      </div>
+      <a href="/play/${quiz._id}" class="btn btn-primary btn-block">▶ Play Now</a>
+    </div>
+  `).join('');
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>

@@ -1,0 +1,140 @@
+<div class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Create Account</h1>
+                <p>Join Quiz Website and start creating quizzes</p>
+            </div>
+
+            <form id="registerForm" class="auth-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Choose a username" minlength="3"
+                        maxlength="30" pattern="^[a-zA-Z0-9_]+$" required>
+                    <span class="error-text" id="usernameError"></span>
+                    <small class="help-text">3-30 characters, letters, numbers, and underscores only</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    <span class="error-text" id="emailError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="password-input">
+                        <input type="password" id="password" name="password" placeholder="Create a password"
+                            minlength="8" required>
+                        <button type="button" class="toggle-password" tabindex="-1">👁️</button>
+                    </div>
+                    <span class="error-text" id="passwordError"></span>
+                    <small class="help-text">Min 8 characters with uppercase, lowercase, and number</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <div class="password-input">
+                        <input type="password" id="confirmPassword" name="confirmPassword"
+                            placeholder="Confirm your password" required>
+                        <button type="button" class="toggle-password" tabindex="-1">👁️</button>
+                    </div>
+                    <span class="error-text" id="confirmPasswordError"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
+                    <span class="btn-text">Create Account</span>
+                    <span class="btn-loader" style="display: none;">⏳</span>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="/auth/login">Login here</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('registerForm');
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Clear previous errors
+            clearErrors();
+
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Client-side validation
+            let hasErrors = false;
+
+            if (username.length < 3) {
+                showFieldError('username', 'Username must be at least 3 characters');
+                hasErrors = true;
+            } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                showFieldError('username', 'Username can only contain letters, numbers, and underscores');
+                hasErrors = true;
+            }
+
+            if (!isValidEmail(email)) {
+                showFieldError('email', 'Please enter a valid email address');
+                hasErrors = true;
+            }
+
+            if (password.length < 8) {
+                showFieldError('password', 'Password must be at least 8 characters');
+                hasErrors = true;
+            } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+                showFieldError('password', 'Password must contain uppercase, lowercase, and number');
+                hasErrors = true;
+            }
+
+            if (password !== confirmPassword) {
+                showFieldError('confirmPassword', 'Passwords do not match');
+                hasErrors = true;
+            }
+
+            if (hasErrors) return;
+
+            // Submit form
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.querySelector('.btn-text').style.display = 'none';
+            submitBtn.querySelector('.btn-loader').style.display = 'inline';
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    showToast('Registration successful! Welcome!', 'success');
+                    setTimeout(() => window.location.href = '/quizzes', 1000);
+                } else {
+                    if (data.details) {
+                        data.details.forEach(d => showFieldError(d.field, d.message));
+                    } else {
+                        showToast(data.error || 'Registration failed', 'error');
+                    }
+                }
+            } catch (error) {
+                showToast('Network error. Please try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.querySelector('.btn-text').style.display = 'inline';
+                submitBtn.querySelector('.btn-loader').style.display = 'none';
+            }
+        });
+    });
+</script>

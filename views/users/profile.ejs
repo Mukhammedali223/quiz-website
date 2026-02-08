@@ -1,0 +1,142 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1>My Profile</h1>
+        <p>Manage your account settings</p>
+    </div>
+
+    <div class="profile-content">
+        <div class="profile-card">
+            <div class="profile-avatar">
+                <span id="avatarInitial">?</span>
+            </div>
+            <div class="profile-info">
+                <h2 id="profileUsername">Loading...</h2>
+                <p id="profileEmail">Loading...</p>
+                <span class="badge" id="profileRole">user</span>
+                <p class="profile-date">Member since: <span id="profileDate">-</span></p>
+            </div>
+        </div>
+
+        <div class="profile-form-card">
+            <h3>Edit Profile</h3>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Username" minlength="3"
+                        maxlength="30">
+                    <span class="error-text" id="usernameError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Email">
+                    <span class="error-text" id="emailError"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="updateBtn">
+                    <span class="btn-text">Update Profile</span>
+                    <span class="btn-loader" style="display: none;">⏳</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async function () {
+        // Check auth
+        if (!isLoggedIn()) {
+            window.location.href = '/auth/login';
+            return;
+        }
+
+        // Load profile
+        await loadProfile();
+
+        // Handle form submission
+        document.getElementById('profileForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            clearErrors();
+
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+
+            // Validate
+            let hasErrors = false;
+
+            if (username && username.length < 3) {
+                showFieldError('username', 'Username must be at least 3 characters');
+                hasErrors = true;
+            }
+
+            if (email && !isValidEmail(email)) {
+                showFieldError('email', 'Please enter a valid email');
+                hasErrors = true;
+            }
+
+            if (!username && !email) {
+                showToast('Please enter at least one field to update', 'error');
+                return;
+            }
+
+            if (hasErrors) return;
+
+            const updateBtn = document.getElementById('updateBtn');
+            updateBtn.disabled = true;
+            updateBtn.querySelector('.btn-text').style.display = 'none';
+            updateBtn.querySelector('.btn-loader').style.display = 'inline';
+
+            try {
+                const body = {};
+                if (username) body.username = username;
+                if (email) body.email = email;
+
+                const response = await fetchWithAuth('/users/profile', {
+                    method: 'PUT',
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    showToast('Profile updated successfully!', 'success');
+                    await loadProfile();
+                } else {
+                    if (data.details) {
+                        data.details.forEach(d => showFieldError(d.field, d.message));
+                    } else {
+                        showToast(data.error || 'Update failed', 'error');
+                    }
+                }
+            } catch (error) {
+                showToast('Network error. Please try again.', 'error');
+            } finally {
+                updateBtn.disabled = false;
+                updateBtn.querySelector('.btn-text').style.display = 'inline';
+                updateBtn.querySelector('.btn-loader').style.display = 'none';
+            }
+        });
+    });
+
+    async function loadProfile() {
+        try {
+            const response = await fetchWithAuth('/users/profile');
+            const data = await response.json();
+
+            if (data.success) {
+                const user = data.data.user;
+                document.getElementById('avatarInitial').textContent = user.username.charAt(0).toUpperCase();
+                document.getElementById('profileUsername').textContent = user.username;
+                document.getElementById('profileEmail').textContent = user.email;
+                document.getElementById('profileRole').textContent = user.role;
+                document.getElementById('profileRole').className = 'badge badge-' + user.role;
+                document.getElementById('profileDate').textContent = new Date(user.createdAt).toLocaleDateString();
+                document.getElementById('username').value = user.username;
+                document.getElementById('email').value = user.email;
+            }
+        } catch (error) {
+            showToast('Failed to load profile', 'error');
+        }
+    }
+</script>

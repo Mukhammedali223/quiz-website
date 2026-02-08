@@ -1,0 +1,30 @@
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="/" class="nav-logo">
+            <span class="logo-text">Quiz Website</span>
+        </a>
+
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+            <span class="hamburger"></span>
+        </button>
+
+        <div class="nav-menu" id="navMenu">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/play" class="nav-link">Play Quiz</a>
+
+            <!-- Logged out state -->
+            <div class="nav-auth logged-out">
+                <a href="/auth/login" class="nav-link">Login</a>
+                <a href="/auth/register" class="btn btn-primary btn-sm">Register</a>
+            </div>
+
+            <!-- Logged in state -->
+            <div class="nav-auth logged-in" style="display: none;">
+                <a href="/quizzes" class="nav-link">My Quizzes</a>
+                <a href="/profile" class="nav-link">Profile</a>
+                <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
+                <span class="user-badge" id="userRole"></span>
+            </div>
+        </div>
+    </div>
+</nav>
