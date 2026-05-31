@@ -178,7 +178,7 @@ Login and receive JWT token.
 **Request:**
 ```json
 {
-  "email": "john@example.com",
+  "email": "@example.com",
   "password": "SecurePass123"
 }
 ```

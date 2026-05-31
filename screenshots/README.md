@@ -1,5 +1,13 @@
 # Screenshots Directory
+./screenshots/01-home.png
+./screenshots/register.png
+./screenshots/login.png
+./screenshots/quizzes.png
+./screenshots/create-quiz.png
+./screenshots/play-quiz.png
+./screenshots/results.png
 
+./screenshots/profile.png
 
 
 - 01-home.png
@@ -12,3 +20,5 @@
 - 08-profile.png
 
 
+link: https://quiz-website--ali2333.replit.app/
+git: https://github.com/Mukhammedali223/quiz-website.git
